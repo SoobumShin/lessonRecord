@@ -22,6 +22,7 @@ const created = await send({ action: 'create', transcript,
 assert.equal(created.code, 201);
 const args = { request_code: created.body.code };
 const record = (await call('get_lesson_record', args)).structuredContent;
+assert.equal(record.workflow, 'lesson_record');
 assert.equal('lesson_date' in record.lesson, false);
 assert.ok(record.transcript_segments > 1);
 assert.deepEqual(record.transcript_batches, [

@@ -123,7 +123,7 @@ async function callTool(name, args) {
   }
   if (name === 'get_lesson_record') {
     const { lesson_date, ...lesson } = record.input.lesson;
-    return { schema_version: 1, lesson_id: record.input.lesson_id, lesson,
+    return { schema_version: 1, workflow: 'lesson_record', lesson_id: record.input.lesson_id, lesson,
       transcript_segments: segments.length, transcript_batches: batches };
   }
   if (record.draft) fail(409, '웹에서 이미 생성한 초안입니다.');
