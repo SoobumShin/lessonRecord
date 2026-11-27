@@ -101,9 +101,9 @@
     <div class="actions">
       <button id="requestAnalysis" type="button" disabled>ChatGPT 전달 준비</button>
     </div>
-    <div id="analysisCodePanel" hidden>
-      <label>수업기록 조회 코드<input id="analysisPrompt" readonly></label>
-      <button id="copyAnalysisCode" type="button">조회 코드 복사</button>
+    <div id="analysisCodePanel">
+      <label>수업기록 조회 코드<input id="analysisPrompt" placeholder="ChatGPT 전달 준비를 누르면 여기에 표시됩니다" readonly></label>
+      <button id="copyAnalysisCode" type="button" disabled>조회 코드 복사</button>
     </div>
     <button id="refreshAnalysis" type="button" hidden>분석 결과 확인</button>
     <p id="analysisStatus" role="status"></p>
@@ -637,7 +637,7 @@ function showAnalysisRequest() {
   analysisDraft = undefined;
   const request = analysisRequests[0];
   byId('refreshAnalysis').hidden = !request;
-  byId('analysisCodePanel').hidden = !request;
+  byId('copyAnalysisCode').disabled = !request;
   if (!request) return;
   const { code } = request;
   analysisPrompt.value = code;
