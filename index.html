@@ -23,6 +23,18 @@
   #audioFile{max-width:100%;margin:6px 0 12px}summary{cursor:pointer}
   @media(max-width:660px){main{margin:12px}.lesson-grid:not([hidden]){grid-template-columns:1fr}}
 </style>
+<style>
+.studio-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px clamp(16px,4vw,44px);background:#fff;border-bottom:1px solid #dbe4ef;font:600 15px/1.4 system-ui,sans-serif}
+.studio-nav a{padding:9px 14px;border-radius:9px;text-decoration:none;color:#24364e}
+.studio-nav a:hover{background:#edf3fd}
+.studio-nav a[aria-current="page"]{color:#174ba9;background:#e5efff}
+.studio-nav a:focus-visible{outline:2px solid #245dbb;outline-offset:2px}
+</style>
+<nav class="studio-nav" aria-label="스튜디오 메뉴">
+  <a href="https://curriculum-lesson-plan-mcp.vercel.app/">수업설계</a>
+  <a href="https://lesson-record-studio.vercel.app/" aria-current="page">수업기록</a>
+  <a href="https://curriculum-lesson-plan-mcp.vercel.app/lesson-improvement.html">수업개선</a>
+</nav>
 <main>
   <h1>수업 기록 스튜디오</h1>
   <fieldset id="lessonFields">
