@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>수업 기록 스튜디오</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#eef3f8;color:#17243a;font:16px/1.55 system-ui,sans-serif}
+  [hidden]{display:none!important}main{max-width:640px;margin:clamp(20px,8vh,80px) auto;padding:24px;background:white;border:1px solid #d6e0ee;border-radius:16px}
+  h1{margin:0 0 16px}label{display:block;font-weight:600}select{width:100%;margin:6px 0 14px}
+  button,select{font:inherit;border:1px solid #bac9db;border-radius:8px;padding:9px 13px;background:white;color:inherit}
+  button{cursor:pointer}button:disabled{opacity:.48;cursor:default}#start{background:#1853bf;color:white;border-color:#1853bf}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}#elapsed{display:block;font:600 2.6rem ui-monospace,monospace;margin:14px 0}
+  meter,audio{width:100%}#status{min-height:2em;color:#263b56}#files{border-top:1px solid #d6e0ee;margin-top:18px;padding-top:12px}
+  article{border:1px solid #d6e0ee;border-radius:8px;padding:12px;margin:10px 0}article p{margin:0 0 8px}a{color:#164fb1}audio{margin:8px 0}
+  fieldset{border:1px solid #d6e0ee;border-radius:8px;margin:0;padding:12px}
+  input:not([type=file]),textarea{display:block;width:100%;font:inherit;margin:5px 0 12px;padding:8px;border:1px solid #bac9db;border-radius:8px}
+  .lesson-grid:not([hidden]){display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .standard-list{max-height:260px;overflow:auto;border:1px solid #d6e0ee;border-radius:8px}
+  .standard-row{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid #e6edf5;font-weight:400}
+  .standard-row:last-child{border:0}.standard-row input[type=radio]{width:auto;margin:5px 0;flex:none}
+  .standard-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0}
+  .curriculum-note{font-size:.875rem;color:#50627b}
+  #audioFile{max-width:100%;margin:6px 0 12px}summary{cursor:pointer}
+  @media(max-width:660px){main{margin:12px}.lesson-grid:not([hidden]){grid-template-columns:1fr}}
+</style>
+<main>
+  <h1>수업 기록 스튜디오</h1>
+  <fieldset id="lessonFields">
+    <legend>수업 정보</legend>
+    <label for="kind">수업 유형</label>
+    <select id="kind"><option value="k12">초·중등 수업</option><option value="university">대학 강의</option></select>
+    <section id="schoolFields" aria-label="교육과정 성취기준">
+      <div class="lesson-grid">
+        <label>학교급<select id="school"><option>초등학교</option><option>중학교</option><option>고등학교</option></select></label>
+        <div><label for="grade">학년</label><select id="grade"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option><option value="4">4학년</option><option value="5">5학년</option><option value="6">6학년</option></select></div>
+      </div>
+      <label for="subject">교과·과목</label><select id="subject"><option value="국">국어</option><option value="바">바른 생활</option><option value="수">수학</option><option value="슬">슬기로운 생활</option><option value="즐">즐거운 생활</option></select>
+      <label>성취기준 검색<input id="search" placeholder="성취기준 코드 또는 원문으로 찾기"></label>
+      <div class="standard-heading"><span id="standardCount" aria-live="polite"></span><button id="clearStandards" type="button">선택 해제</button></div>
+      <div id="standardList" class="standard-list"></div>
+      <p class="curriculum-note">2022 개정 교육과정 별책 5~14 및 별책 15 성취기준 코드·원문 2,171개</p>
+    </section>
+    <div class="lesson-grid">
+      <label>수업 날짜<input id="lessonDate" type="date"></label>
+      <label id="courseField" hidden>교과목<input id="course" maxlength="100" placeholder="예: 교육공학"></label>
+    </div>
+    <label>수업 주제<input id="topic" maxlength="150" placeholder="예: 우리 주변의 자석"></label>
+    <details><summary>수업 정보 더 입력하기</summary>
+      <div id="universityFields" class="lesson-grid" hidden>
+        <label>학기<input id="semester" maxlength="40"></label>
+        <label>주차<input id="week" maxlength="30"></label>
+        <label>학습목표<textarea id="objective" rows="2"></textarea></label>
+      </div>
+      <label>교사 메모<textarea id="memo" rows="2"></textarea></label>
+    </details>
+  </fieldset>
+  <h2>직접 녹음</h2>
+  <label for="mic">마이크</label>
+  <select id="mic" disabled><option value="">시스템 기본 마이크</option></select>
+  <button id="connect" type="button">마이크 연결 및 확인</button>
+  <output id="elapsed" aria-label="녹음 시간">00:00:00</output>
+  <label for="level">마이크 입력 수준</label>
+  <meter id="level" min="0" max="1" value="0"></meter>
+  <div class="actions">
+    <button id="start" disabled>녹음 시작</button>
+    <button id="pause" disabled>일시정지</button>
+    <button id="stop" disabled>녹음 종료</button>
+  </div>
+  <p id="status" role="status">마이크를 먼저 연결하세요. 저장된 녹음은 이 브라우저에 보관됩니다.</p>
+  <section aria-labelledby="uploadHeading">
+    <h2 id="uploadHeading">음성 파일 등록</h2>
+    <label for="audioFile">녹음 파일</label>
+    <input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.webm,.ogg,.flac">
+    <button id="attach" type="button" disabled>수업 기록에 추가</button>
+    <p id="uploadStatus" role="status"></p>
+  </section>
+  <section id="files" aria-labelledby="recordings"><h2 id="recordings">내 수업 기록</h2><div id="saved"></div></section>
+  <section aria-labelledby="analysisHeading">
+    <h2 id="analysisHeading">ChatGPT 수업 기록 분석</h2>
+    <p>ChatGPT에서 수업 정보를 조회해 분석 초안을 저장하면 이 화면에서 확인할 수 있습니다.</p>
+    <label>전사문<textarea id="lessonTranscript" rows="7" maxlength="240000" placeholder="내 수업 기록에서 Whisper 전사를 누르거나 전사문을 붙여넣으세요."></textarea></label>
+    <p id="transcriptionStatus" role="status"></p>
+    <div class="actions">
+      <button id="requestAnalysis" type="button" disabled>ChatGPT 전달 준비</button>
+    </div>
+    <div id="analysisPromptFallback" hidden>
+      <label>MCP 조회 코드<input id="analysisPrompt" readonly></label>
+    </div>
+    <button id="refreshAnalysis" type="button" hidden>분석 결과 확인</button>
+    <p id="analysisStatus" role="status"></p>
+    <div id="analysisDraftArea" hidden>
+      <label>분석 요약<textarea id="analysisSummary" rows="4" maxlength="5000"></textarea></label>
+      <label>분석 한계<textarea id="analysisLimits" rows="3" maxlength="8000"></textarea></label>
+      <ul id="analysisDetails"></ul>
+      <button id="confirmAnalysis" type="button">검토한 분석 최종 저장</button>
+    </div>
+  </section>
+</main>
+<script>
+const byId = id => document.getElementById(id);
+const mic = byId('mic'), connect = byId('connect'), start = byId('start');
+const pause = byId('pause'), stop = byId('stop'), status = byId('status');
+const saved = byId('saved'), elapsed = byId('elapsed'), level = byId('level');
+let db, stream, meterContext, animation, recorder, active, timer;
+let urls = [], writeQueue = Promise.resolve(), writeError;
+const fields = byId('lessonFields'), kind = byId('kind'), file = byId('audioFile');
+const attach = byId('attach'), uploadStatus = byId('uploadStatus');
+let uploading = false;
+const fieldValue = id => byId(id).value.trim();
+function lessonInfo() {
+  const date = fieldValue('lessonDate'), topic = fieldValue('topic');
+  const subject = byId('subject'), grade = byId('grade');
+  const course = kind.value === 'k12' ? subject.selectedOptions[0]?.textContent : fieldValue('course');
+  if (!date || !course || !topic) throw Error('수업 날짜, 교과·교과목, 수업 주제를 입력하세요.');
+  const info = {education_type:kind.value, lesson_date:date, course, topic, memo:fieldValue('memo')};
+  if (kind.value === 'k12') {
+    const selected = curriculum.find(item => item.code === selectedStandardCode && item.subjectCode === subject.value && gradeMatch(item));
+    return {...info, school_level:fieldValue('school'), grade:grade.selectedOptions[0]?.textContent,
+      subject_code:subject.value,
+      standards:selected ? [{code:selected.code,text:selected.text}] : []};
+  }
+  return {...info, semester:fieldValue('semester'), week:fieldValue('week'), learning_objective:fieldValue('objective')};
+}
+function updateEntryControls() {
+  fields.disabled = !!active || uploading;
+  attach.disabled = !db || !!active || uploading || !file.files.length;
+}
+kind.onchange = () => {
+  byId('schoolFields').hidden = kind.value !== 'k12';
+  byId('courseField').hidden = kind.value !== 'university';
+  byId('universityFields').hidden = kind.value !== 'university';
+};
+file.onchange = updateEntryControls;
+const today = new Date();
+byId('lessonDate').value = [today.getFullYear(),today.getMonth()+1,today.getDate()]
+  .map((part,index) => index ? String(part).padStart(2,'0') : part).join('-');
+attach.onclick = async () => {
+  if (uploading || active || !file.files.length) return;
+  let lesson;
+  try { lesson = lessonInfo(); } catch (error) { uploadStatus.textContent = error.message; return; }
+  const audio = file.files[0];
+  if (!audio.size || !/\.(mp3|wav|m4a|aac|webm|ogg|flac)$/i.test(audio.name)) {
+    uploadStatus.textContent = '지원되는 음성 파일을 선택하세요.';
+    return;
+  }
+  uploading = true;
+  updateEntryControls();
+  uploadStatus.textContent = '음성 파일을 저장하는 중입니다.';
+  try {
+    const item = {id:crypto.randomUUID(),created:Date.now(),mime:audio.type,
+      filename:audio.name,complete:true,inputType:'file_upload',lesson};
+    await transaction(['sessions','chunks'],'readwrite',tx => {
+      tx.objectStore('sessions').put(item);
+      tx.objectStore('chunks').put({id:item.id,index:0,blob:audio});
+    });
+    file.value = '';
+    uploadStatus.textContent = '수업 기록에 음성 파일을 추가했습니다.';
+    await showSaved();
+  } catch (error) {
+    uploadStatus.textContent = '음성 파일을 저장하지 못했습니다. 브라우저 저장 공간을 확인하세요.';
+  } finally {
+    uploading = false;
+    updateEntryControls();
+  }
+};
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('lesson-record-studio', 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore('sessions', {keyPath:'id'});
+      const chunks = request.result.createObjectStore('chunks', {keyPath:['id','index']});
+      chunks.createIndex('session', 'id');
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+function transaction(names, mode, operation) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(names, mode);
+    let result;
+    tx.oncomplete = () => resolve(result?.result);
+    tx.onabort = () => reject(tx.error || Error('저장 작업 중단'));
+    try { result = operation(tx); } catch (error) { tx.abort(); reject(error); }
+  });
+}
+function clock(ms) {
+  const seconds = Math.floor(ms / 1000);
+  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
+    .map(value => String(value).padStart(2,'0')).join(':');
+}
+function currentTime() {
+  return active.accumulated + (active.since === null ? 0 : performance.now() - active.since);
+}
+function releaseMic() {
+  cancelAnimationFrame(animation);
+  stream?.getTracks().forEach(track => track.stop());
+  stream = null;
+  meterContext?.close().catch(() => {});
+  meterContext = null;
+  level.value = 0;
+}
+async function prepareMic() {
+  connect.disabled = mic.disabled = start.disabled = true;
+  const selected = mic.value;
+  releaseMic();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: selected ? {deviceId:{exact:selected}} : true
+    });
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+    mic.replaceChildren(new Option('시스템 기본 마이크',''));
+    for (const d of devices) if (d.deviceId) mic.add(new Option(d.label || '마이크',d.deviceId));
+    mic.value = devices.some(d => d.deviceId === selected) ? selected : '';
+    const track = stream.getAudioTracks()[0];
+    track.addEventListener('ended', () => {
+      if (recorder && recorder.state !== 'inactive' && active) {
+        active.interrupted = true;
+        endRecording();
+      } else {
+        start.disabled = true;
+        status.textContent = '마이크 연결이 끊겼습니다. 다시 연결하세요.';
+      }
+    });
+    if (window.AudioContext) {
+      meterContext = new AudioContext();
+      const analyser = meterContext.createAnalyser();
+      meterContext.createMediaStreamSource(stream).connect(analyser);
+      const samples = new Float32Array(analyser.fftSize);
+      function updateMeter() {
+        analyser.getFloatTimeDomainData(samples);
+        const sum = samples.reduce((total, sample) => total + sample * sample, 0);
+        level.value = Math.min(1, Math.sqrt(sum / samples.length) * 3);
+        animation = requestAnimationFrame(updateMeter);
+      }
+      updateMeter();
+    }
+    start.disabled = false;
+    status.textContent = (track.label || '마이크') + ' 연결됨. 말할 때 입력 막대가 움직이는지 확인하세요.';
+  } catch (error) {
+    releaseMic();
+    status.textContent = '마이크를 연결할 수 없습니다. Windows 입력 장치와 브라우저 마이크 권한을 확인하세요. (' + error.name + ')';
+  } finally {
+    connect.disabled = mic.disabled = false;
+  }
+}
+async function showSaved() {
+  const sessions = await transaction(['sessions'],'readonly',tx => tx.objectStore('sessions').getAll());
+  for (const url of urls) URL.revokeObjectURL(url);
+  urls = [];
+  saved.replaceChildren();
+  for (const item of sessions.sort((a,b) => b.created-a.created)) {
+    if (item.id === active?.id) continue;
+    const chunks = await transaction(['chunks'],'readonly',tx => tx.objectStore('chunks').index('session').getAll(item.id));
+    if (!chunks.length) continue;
+    const blob = new Blob(chunks.sort((a,b) => a.index-b.index).map(chunk => chunk.blob), {type:item.mime});
+    const url = URL.createObjectURL(blob);
+    urls.push(url);
+    const card = document.createElement('article');
+    const info = document.createElement('p');
+    const title = document.createElement('h3');
+    title.textContent = item.lesson ? item.lesson.topic : '수업 녹음';
+    const detail = item.lesson ? item.lesson.lesson_date + ' · ' + item.lesson.course : new Date(item.created).toLocaleString('ko-KR');
+    info.textContent = detail + ' · ' + (item.inputType === 'file_upload' ? '파일 등록' : '직접 녹음 ' + clock(item.duration || 0))
+      + (item.complete ? '' : ' · 복구본');
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = url;
+    const download = document.createElement('a');
+    const ext = item.mime.includes('mp4') ? 'm4a' : item.mime.includes('ogg') ? 'ogg' : 'webm';
+    download.href = url;
+    download.download = item.filename || '수업녹음-' + new Date(item.created).toISOString().replace(/[:.]/g,'-') + '.' + ext;
+    download.textContent = '음성 파일 저장';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = '브라우저에서 삭제';
+    remove.onclick = async () => {
+      if (!confirm('이 브라우저에 보관된 녹음을 삭제할까요?')) return;
+      await transaction(['sessions','chunks'],'readwrite',tx => {
+        tx.objectStore('sessions').delete(item.id);
+        tx.objectStore('chunks').delete(IDBKeyRange.bound([item.id,0],[item.id,Number.MAX_SAFE_INTEGER]));
+      });
+      await showSaved();
+    };
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const transcribe = document.createElement('button');
+    transcribe.type = 'button';
+    transcribe.textContent = 'Whisper 전사';
+    const transcriptState = document.createElement('p');
+    transcriptState.setAttribute('role', 'status');
+    const viewTranscript = document.createElement('button');
+    viewTranscript.type = 'button';
+    viewTranscript.textContent = '전사 완료 · 전사문 보기';
+    viewTranscript.hidden = true;
+    viewTranscript.onclick = () => byId('lessonTranscript').focus();
+    transcribe.onclick = () => transcribeRecording(blob, item.lesson, transcribe, transcriptState, viewTranscript);
+    actions.append(download,transcribe,viewTranscript,remove);
+    card.append(title,info);
+    if (item.lesson) {
+      const conditions = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = '수업 정보 보기';
+      const record = document.createElement('p');
+      const l = item.lesson;
+      record.textContent = [l.school_level, l.grade, l.period, l.semester, l.week, l.learning_objective,
+        ...((l.standards || []).map(s => s.code + ' ' + s.text)), l.memo].filter(Boolean).join(' · ') || '추가 수업 정보가 없습니다.';
+      conditions.append(summary,record);
+      card.append(conditions);
+    }
+    card.append(audio,actions,transcriptState);
+    saved.append(card);
+  }
+  if (!saved.children.length) saved.textContent = '저장된 녹음이 없습니다.';
+}
+function endRecording() {
+  if (!recorder || recorder.state === 'inactive' || !active) return;
+  active.accumulated = currentTime();
+  active.since = null;
+  stop.disabled = pause.disabled = true;
+  recorder.stop();
+}
+start.onclick = async () => {
+  if (uploading) return;
+  let lesson;
+  try { lesson = lessonInfo(); } catch (error) { status.textContent = error.message; return; }
+  start.disabled = connect.disabled = mic.disabled = true;
+  let session;
+  try {
+    const mime = ['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus']
+      .find(type => MediaRecorder.isTypeSupported(type));
+    recorder = mime ? new MediaRecorder(stream,{mimeType:mime,audioBitsPerSecond:64000}) : new MediaRecorder(stream);
+    session = {id:crypto.randomUUID(),created:Date.now(),mime:recorder.mimeType,duration:0,complete:false,inputType:"direct_recording",lesson};
+    active = {...session,index:0,accumulated:0,since:null};
+    updateEntryControls();
+    writeError = null;
+    writeQueue = Promise.resolve();
+    await transaction(['sessions'],'readwrite',tx => tx.objectStore('sessions').put(session));
+    recorder.ondataavailable = event => {
+      if (!event.data.size) return;
+      const index = active.index++, duration = currentTime();
+      const blob = event.data;
+      writeQueue = writeQueue.then(() => transaction(['sessions','chunks'],'readwrite',tx => {
+        tx.objectStore('chunks').put({id:session.id,index,blob});
+        tx.objectStore('sessions').put({...session,mime:blob.type || session.mime,duration});
+      })).catch(error => {
+        writeError = error;
+        if (active) active.interrupted = true;
+        endRecording();
+      });
+    };
+    recorder.onerror = () => {
+      active.interrupted = true;
+      status.textContent = '녹음이 중단됐습니다. 저장된 구간을 확인하세요.';
+    };
+    recorder.onstop = async () => {
+      clearInterval(timer);
+      const finished = active;
+      await writeQueue;
+      try {
+        if (!writeError && finished.index) {
+          await transaction(['sessions'],'readwrite',tx => tx.objectStore('sessions').put({
+            ...session,mime:recorder.mimeType || session.mime,duration:currentTime(),complete:!finished.interrupted
+          }));
+        }
+        status.textContent = writeError || finished.interrupted
+          ? '녹음이 중단됐습니다. 아래에서 복구본을 재생해 확인하세요.'
+          : finished.index ? '녹음이 끝났습니다. 아래에서 재생하거나 음성 파일을 저장하세요.'
+          : '녹음된 소리가 없습니다. 마이크를 확인하고 다시 시도하세요.';
+        elapsed.value = clock(currentTime());
+      } catch {
+        status.textContent = '종료 정보를 저장하지 못했습니다. 아래에서 남은 녹음을 확인하세요.';
+      } finally {
+        active = null;
+    updateEntryControls();
+        recorder = null;
+        releaseMic();
+        connect.disabled = mic.disabled = false;
+        start.disabled = pause.disabled = stop.disabled = true;
+        pause.textContent = '일시정지';
+        await showSaved();
+      }
+    };
+    recorder.start(3000);
+    active.since = performance.now();
+    elapsed.value = clock(0);
+    timer = setInterval(() => { elapsed.value = clock(currentTime()); }, 250);
+    pause.disabled = stop.disabled = false;
+    status.textContent = '녹음 중입니다.';
+  } catch (error) {
+    active = null;
+    updateEntryControls();
+    recorder = null;
+    connect.disabled = mic.disabled = false;
+    start.disabled = !stream?.active;
+    status.textContent = '녹음을 시작하지 못했습니다. (' + error.name + ')';
+  }
+};
+pause.onclick = () => {
+  if (recorder.state === 'recording') {
+    active.accumulated = currentTime();
+    active.since = null;
+    recorder.requestData();
+    recorder.pause();
+    pause.textContent = '녹음 재개';
+    status.textContent = '녹음을 일시정지했습니다.';
+  } else if (recorder.state === 'paused') {
+    recorder.resume();
+    active.since = performance.now();
+    pause.textContent = '일시정지';
+    status.textContent = '녹음 중입니다.';
+  }
+};
+stop.onclick = endRecording;
+window.addEventListener('beforeunload',event => {
+  if (!active && !uploading) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+const $ = selector => document.querySelector(selector);
+const subjectNames={"국":"국어","수":"수학","바":"바른 생활","슬":"슬기로운 생활","즐":"즐거운 생활","사":"사회","도":"도덕","과":"과학","실":"실과","체":"체육","음":"음악","미":"미술","영":"영어","정":"정보","역":"역사","기가":"기술·가정","경제":"경제","생활":"생활과학","심독":"심화 영어 독해와 작문","아동":"아동발달과 부모","역현":"현대 세계의 변화","인윤":"인간과 윤리","자립":"생애 설계와 자립","기하":"기하","대수":"대수","물리":"물리학","화학":"화학","지구":"지구과학","확통":"확률과 통계","감비":"음악 감상과 비평","경수":"경제 수학","과사":"과학의 역사와 문화","국관":"국제 관계의 이해","금융":"금융과 경제생활","기지":"기후변화와 지속가능한 세계","기환":"기후변화와 환경생태","데과":"데이터 과학","도탐":"도시의 미래 탐구","독작":"독서와 작문","독토":"독서 토론과 글쓰기","동역":"동아시아 역사 기행","로봇":"로봇과 공학세계","매의":"매체 의사소통","문영":"문학과 영상","문학":"문학","물에":"물질과 에너지","미감":"미술 감상과 비평","미매":"미술과 매체","미영":"미디어 영어","미창":"미술 창작","반응":"화학 반응의 세계","법사":"법과 사회","사문":"사회와 문화","사탐":"사회문제 탐구","생과":"생명과학","세사":"세계사","세영":"세계시민과 영어","세지":"세계지리","세포":"세포와 물질대사","소생":"소프트웨어와 생활","수과":"수학과제 탐구","수문":"수학과 문화","스과":"스포츠 과학","스문":"스포츠 문화","실영":"실생활 영어","실통":"실용 통계","심영":"심화 영어","언탐":"언어생활 탐구","여지":"여행지리","역학":"역학과 에너지","연창":"연주와 창작","영독":"영어 독해와 작문","영문":"영미 문학 읽기","영발":"영어 발표와 토론","운건":"운동과 건강","유전":"생물의 유전","윤사":"윤리와 사상","윤탐":"윤리문제 탐구","융탐":"융합과학 탐구","음미":"음악과 미디어","인기":"인공지능 기초","인수":"인공지능 수학","전자":"전자기와 양자","정치":"정치와 법","주탐":"주제 탐구 독서","지시":"지구시스템과학","지재":"지식재산 일반","직수":"직무 수학","직영":"직무 영어","직의":"직무 의사소통","창공":"창의 공학","한탐":"한국지리 탐구","행우":"행성우주과학","현윤":"현대사회와 윤리","화언":"화법과 언어","공":"공통 과목","윤리":"윤리","지리":"지리","생명":"생명과학","금":"금융과 경제생활","인문":"인문학"};
+let curriculum = [];
+let selectedStandardCode = '';
+
+function gradeMatch(record) {
+  const school = fieldValue('school');
+  if (record.schoolLevel !== school) return false;
+  if (school === '고등학교') return true;
+  if (school === '중학교') return record.gradeBand.includes(9);
+  return record.gradeBand.includes(Number(fieldValue('grade')));
+}
+function renderGrades() {
+  const school = fieldValue('school');
+  const grades = school === '초등학교' ? [1,2,3,4,5,6].map(n => [String(n),n+'학년'])
+    : school === '중학교' ? [['7','1학년'],['8','2학년'],['9','3학년']]
+    : [['hs','공통·선택 과목']];
+  byId('grade').replaceChildren(...grades.map(([value,label]) => new Option(label,value)));
+  renderSubjects();
+}
+function renderSubjects() {
+  const select = byId('subject');
+  const previous = select.value;
+  const codes = [...new Set(curriculum.filter(gradeMatch).map(record => record.subjectCode))];
+  const name = code => subjectNames[code] || code+' · 과목명 확인 필요';
+  codes.sort((a,b) => name(a).localeCompare(name(b),'ko'));
+  select.replaceChildren(...codes.map(code => new Option(name(code),code)));
+  if (codes.includes(previous)) select.value = previous;
+  resetStandard();
+}
+function resetStandard() {
+  selectedStandardCode = '';
+  byId('search').value = '';
+  searchStandards();
+}
+function renderStandardList(records,label = records.length+'개 표시') {
+  const list = byId('standardList');
+  const selection = () => {
+    byId('standardCount').textContent = label+' · '+(selectedStandardCode || '선택 없음');
+  };
+  selection();
+  list.replaceChildren();
+  if (!records.length) list.textContent = '조건에 맞는 성취기준이 없습니다.';
+  for (const record of records) {
+    const row = document.createElement('label');
+    row.className = 'standard-row';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'achievementStandard';
+    radio.checked = selectedStandardCode === record.code;
+    radio.onchange = () => { selectedStandardCode = record.code; selection(); };
+    const content = document.createElement('span');
+    const code = document.createElement('b');
+    code.textContent = record.code;
+    content.append(code,document.createElement('br'),record.text);
+    row.append(radio,content);
+    list.append(row);
+  }
+}
+function searchStandards() {
+  const query = fieldValue('search').toLowerCase();
+  const subject = fieldValue('subject');
+  const matches = curriculum.filter(record => gradeMatch(record) && record.subjectCode === subject
+    && (record.code.toLowerCase().includes(query) || record.text.toLowerCase().includes(query)));
+  renderStandardList(matches);
+}
+let transcriptLesson;
+let transcriptionRunning = false;
+let lastTranscriptButton;
+byId('lessonTranscript').addEventListener('input', () => {
+  if (!fieldValue('lessonTranscript')) transcriptLesson = undefined;
+  updateAnalysisButton();
+});
+async function transcribeRecording(blob, lesson, button, cardStatus, viewTranscript) {
+  if (transcriptionRunning) return;
+  const editor = byId('lessonTranscript');
+  if (editor.value.trim() && !confirm('현재 전사문을 새 전사 결과로 바꿀까요?')) return;
+  transcriptionRunning = button.disabled = true;
+  updateAnalysisButton();
+  const showStatus = message => {
+    cardStatus.textContent = message;
+    byId('transcriptionStatus').textContent = message;
+  };
+  showStatus('전사 준비 중입니다. 첫 실행에는 모델 다운로드가 필요합니다.');
+  let context, worker;
+  try {
+    context = new AudioContext({ sampleRate: 16000 });
+    const audio = await context.decodeAudioData(await blob.arrayBuffer());
+    const samples = new Float32Array(audio.length);
+    for (let i = 0; i < audio.numberOfChannels; i++) {
+      const channel = audio.getChannelData(i);
+      for (let j = 0; j < samples.length; j++) samples[j] += channel[j] / audio.numberOfChannels;
+    }
+    worker = new Worker('/whisper-worker.js', { type: 'module' });
+    const transcript = await new Promise((resolve, reject) => {
+      worker.onerror = () => reject(Error('브라우저에서 Whisper를 시작하지 못했습니다.'));
+      worker.onmessage = ({ data }) => {
+        if (data.error) reject(Error(data.error));
+        else if (typeof data.text === 'string') resolve(data.text);
+        else showStatus(data.status);
+      };
+      worker.postMessage(samples, [samples.buffer]);
+    });
+    if (!transcript) {
+      showStatus('인식한 음성이 없습니다.');
+      return;
+    }
+    editor.value = transcript;
+    transcriptLesson = lesson;
+    if (lastTranscriptButton) lastTranscriptButton.hidden = true;
+    lastTranscriptButton = viewTranscript;
+    viewTranscript.hidden = false;
+    showStatus('전사 완료 · ' + transcript.length.toLocaleString('ko-KR') + '자');
+  } catch (error) { showStatus(error.message); }
+  finally {
+    worker?.terminate();
+    if (context) await context.close().catch(() => {});
+    transcriptionRunning = button.disabled = false;
+    updateAnalysisButton();
+  }
+}
+const analysisStatus = byId('analysisStatus');
+const analysisPrompt = byId('analysisPrompt');
+const analysisDraftArea = byId('analysisDraftArea');
+const analysisKeep = 'lesson-record-analysis-requests-v1';
+let analysisRequests = [];
+let analysisDraft;
+let analysisBusy = false;
+let analysisRefreshTimer;
+try { analysisRequests = JSON.parse(localStorage.getItem(analysisKeep) || '[]'); } catch {}
+if (!Array.isArray(analysisRequests)) analysisRequests = [];
+
+async function analysisCall(action, request, fields = {}) {
+  if (location.protocol === 'file:') throw Error('분석 요청은 배포된 수업 기록 스튜디오에서 사용할 수 있습니다.');
+  const headers = { 'Content-Type': 'application/json' };
+  if (request) headers.Authorization = 'Bearer ' + request.owner;
+  const response = await fetch('/api/lesson-record', {
+    method: 'POST', headers, signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({ action, code: request?.code, ...fields })
+  });
+  const data = await response.json();
+  if (!response.ok) throw Error(data.error || '분석 요청 처리에 실패했습니다.');
+  return data;
+}
+function updateAnalysisButton() {
+  byId('requestAnalysis').disabled = transcriptionRunning || analysisBusy || !fieldValue('lessonTranscript');
+}
+function renderAnalysisResult(data) {
+  const finalized = data.state === 'confirmed';
+  analysisDraft = data.result?.analysis;
+  analysisDraftArea.hidden = !analysisDraft;
+  const statusNames = {
+    pending: 'ChatGPT의 분석 초안을 기다리는 중입니다.',
+    draft: '초안이 도착했습니다. 내용을 확인한 뒤 저장하세요.',
+    confirmed: '교사가 검토한 분석을 최종 저장했습니다.',
+    expired: '요청 코드가 만료되었습니다. 새 분석 요청을 만들어 주세요.'
+  };
+  analysisStatus.textContent = statusNames[data.state];
+  if (data.state !== 'pending') clearInterval(analysisRefreshTimer);
+  if (!analysisDraft) return;
+  byId('analysisSummary').value = analysisDraft.summary;
+  byId('analysisLimits').value = analysisDraft.limitations.join('\n');
+  byId('analysisSummary').readOnly = byId('analysisLimits').readOnly = finalized;
+  byId('confirmAnalysis').hidden = finalized;
+  const labels = { key_concepts: '핵심 개념', explanations: '설명', examples_and_analogies: '예·비유',
+    teacher_questions: '교사 발문', learning_activities: '학습 활동', teaching_characteristics: '수업 특성',
+    curriculum_alignment: '교육과정 연계', technology_usage: '에듀테크', contextual_features: '맥락', new_ideas: '아이디어' };
+  const flow = (analysisDraft.lesson_flow || []).map(step => {
+    const line = document.createElement('li');
+    line.textContent = step.sequence + '. ' + step.title + ' · ' + step.description + (step.evidence?.length ? ' · 근거 ' + step.evidence.join(' / ') : '');
+    return line;
+  });
+  byId('analysisDetails').replaceChildren(...flow, ...Object.entries(labels).flatMap(([key, label]) => {
+    if (!analysisDraft[key]?.length) return [];
+    const line = document.createElement('li');
+    line.textContent = label + ' · ' + analysisDraft[key].join(' / ');
+    return [line];
+  }));
+}
+async function runAnalysis(work, button) {
+  if (analysisBusy) return;
+  analysisBusy = true;
+  if (button) button.disabled = true;
+  updateAnalysisButton();
+  try { await work(); }
+  catch (error) { analysisStatus.textContent = error.message; }
+  finally {
+    analysisBusy = false;
+    if (button) button.disabled = false;
+    updateAnalysisButton();
+  }
+}
+function showAnalysisRequest() {
+  clearInterval(analysisRefreshTimer);
+  analysisDraftArea.hidden = true;
+  analysisDraft = undefined;
+  const request = analysisRequests[0];
+  byId('refreshAnalysis').hidden = !request;
+  if (!request) return;
+  const { code } = request;
+  analysisPrompt.value = code;
+  const refresh = () => runAnalysis(async () => {
+    const data = await analysisCall('status', request);
+    if (data.state !== 'draft' || !analysisDraft) renderAnalysisResult(data);
+  });
+  byId('refreshAnalysis').onclick = refresh;
+  analysisRefreshTimer = setInterval(refresh, 5000);
+  return refresh;
+}
+async function startAnalysis(event) {
+  let refresh;
+  await runAnalysis(async () => {
+    if (transcriptionRunning) throw Error('전사가 끝난 뒤 전달하세요.');
+    const transcript = fieldValue('lessonTranscript');
+    if (!transcript) throw Error('녹음을 Whisper로 전사하거나 전사문을 붙여넣으세요.');
+    const lesson = transcriptLesson || lessonInfo();
+    const { lesson_date, ...details } = lesson;
+    const data = await analysisCall('create', null, { lesson: details, transcript });
+    analysisRequests.unshift({ code: data.code, owner: data.owner, title: lesson.topic });
+    refresh = showAnalysisRequest();
+    try { localStorage.setItem(analysisKeep, JSON.stringify(analysisRequests)); }
+    catch { throw Error('요청을 만들었지만 브라우저에 목록을 보관하지 못했습니다. 이 탭에서 결과를 확인하세요.'); }
+  }, event.currentTarget);
+  return Boolean(refresh);
+}
+byId('requestAnalysis').onclick = async event => {
+  if (event.currentTarget.disabled) return;
+  byId('analysisPromptFallback').hidden = true;
+  if (!await startAnalysis(event)) return;
+  try {
+    await navigator.clipboard.writeText(analysisPrompt.value);
+    analysisStatus.textContent = 'MCP 조회 준비 완료. 조회 코드를 복사했습니다.';
+  } catch {
+    byId('analysisPromptFallback').hidden = false;
+    analysisPrompt.focus();
+    analysisPrompt.select();
+    analysisStatus.textContent = 'MCP 조회 준비 완료. 표시된 조회 코드를 복사하세요.';
+  }
+};
+byId('confirmAnalysis').onclick = event => runAnalysis(async () => {
+  const request = analysisRequests[0];
+  const analysis = { ...analysisDraft, summary: fieldValue('analysisSummary'),
+    limitations: fieldValue('analysisLimits').split('\n').map(line => line.trim()).filter(Boolean) };
+  const result = await analysisCall('confirm', request, { analysis });
+  renderAnalysisResult({ state: result.status, result });
+}, event.currentTarget);
+showAnalysisRequest()?.();
+byId('school').onchange = renderGrades;
+byId('grade').onchange = renderSubjects;
+byId('subject').onchange = resetStandard;
+byId('search').oninput = searchStandards;
+byId('clearStandards').onclick = () => {
+  selectedStandardCode = '';
+  searchStandards();
+};
+renderGrades();
+async function loadPublishedStandards() {
+  async function json(path) {
+    const response = await fetch(path);
+    if (!response.ok) throw Error('성취기준을 불러오지 못했습니다.');
+    return response.json();
+  }
+  const index = await json('/data/index.json');
+  const shards = await Promise.all(index.shards.map(json));
+  curriculum = shards.flat();
+  renderSubjects();
+}
+loadPublishedStandards().catch(error => { byId('analysisStatus').textContent = error.message; });
+openDB().then(async database => {
+  db = database;
+  updateEntryControls();
+  await showSaved();
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    connect.disabled = true;
+    status.textContent = '이 환경에서는 마이크에 접근할 수 없습니다. Chrome 또는 Edge에서 파일을 열거나 HTTPS에서 실행하세요.';
+    return;
+  }
+  connect.onclick = mic.onchange = prepareMic;
+}).catch(() => {
+  connect.disabled = true;
+  status.textContent = '브라우저 임시 저장소를 열지 못했습니다. 일반 브라우저 창에서 다시 열어 주세요.';
+});
+</script>
+</html>
