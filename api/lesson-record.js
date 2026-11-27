@@ -54,7 +54,7 @@ function cleanLesson(lesson) {
 }
 const listKeys = ['key_concepts', 'explanations', 'examples_and_analogies', 'teacher_questions',
   'learning_activities', 'teaching_characteristics', 'curriculum_alignment', 'technology_usage',
-  'contextual_features', 'new_ideas', 'limitations'];
+  'contextual_features', 'new_ideas', 'ai_supplement', 'limitations'];
 const strings = { type: 'array', items: { type: 'string' }, maxItems: 50 };
 const analysisSchema = { type: 'object', required: ['summary', 'limitations'], additionalProperties: false,
   properties: { summary: { type: 'string', maxLength: 5000 },
@@ -66,7 +66,7 @@ const analysisSchema = { type: 'object', required: ['summary', 'limitations'], a
       } } },
     ...Object.fromEntries(listKeys.map(key => [key, strings]))
   } };
-function cleanAnalysis(value, hasTranscript) {
+function cleanAnalysis(value, hasTranscript, recordLength) {
   if (!object(value) || typeof value.summary !== 'string' || !value.summary.trim() || value.summary.length > 5000 ||
       !Array.isArray(value.limitations) || !value.limitations.length ||
       (value.lesson_flow !== undefined && (!Array.isArray(value.lesson_flow) || (hasTranscript ? value.lesson_flow.length > 30 : value.lesson_flow.length)))) {
@@ -82,6 +82,9 @@ function cleanAnalysis(value, hasTranscript) {
     const values = value[key] ?? [];
     if (!Array.isArray(values) || values.length > 50 || values.some(item => typeof item !== 'string' || !item.trim() || item.length > 2000)) {
       fail(400, '분석 항목은 길이 2,000자 이내의 문자열 목록이어야 합니다.');
+    }
+    if (key === 'ai_supplement' && values.length && recordLength !== 'three_pages') {
+      fail(400, 'AI 보충 설명은 A4 3장형에서 사용할 수 있습니다.');
     }
     analysis[key] = values;
   }
@@ -124,11 +127,12 @@ async function callTool(name, args) {
   if (name === 'get_lesson_record') {
     const { lesson_date, ...lesson } = record.input.lesson;
     return { schema_version: 1, workflow: 'lesson_record', lesson_id: record.input.lesson_id, lesson,
+      record_length: record.input.record_length ?? 'one_page',
       transcript_segments: segments.length, transcript_batches: batches };
   }
   if (record.draft) fail(409, '웹에서 이미 생성한 초안입니다.');
   if (args.lesson_id !== record.input.lesson_id) fail(400, '수업 ID가 조회한 기록과 일치해야 합니다.');
-  const analysis = cleanAnalysis(args.analysis, segments.length > 0);
+  const analysis = cleanAnalysis(args.analysis, segments.length > 0, record.input.record_length);
   const draft = await writeOnce(code, 'draft', { schema_version: 1, lesson_id: args.lesson_id, analysis, status: 'draft' });
   if (JSON.stringify(analysis) !== JSON.stringify(draft.analysis)) fail(409, '이미 초안이 저장되었습니다.');
   return { lesson_id: draft.lesson_id, status: await read(code, 'confirmed') ? 'confirmed' : 'draft' };
@@ -171,6 +175,8 @@ export default async function handler(req, res) {
           !equal(hash(String(body.access_key ?? '')), hash(process.env.LESSON_RECORD_ACCESS_KEY))) fail(403, '스튜디오 접근키를 확인하세요.');
       const lesson = cleanLesson(body.lesson);
       if (body.workflow !== undefined && body.workflow !== 'lesson_record') fail(400, '수업기록 요청 유형을 확인하세요.');
+      const record_length = body.record_length ?? 'one_page';
+      if (!['half_page', 'one_page', 'three_pages'].includes(record_length)) fail(400, '수업기록 분량을 선택하세요.');
       const transcriptInput = body.workflow === 'lesson_record' ? body.transcript?.text : body.transcript;
       const transcript = typeof transcriptInput === 'string' ? transcriptInput.trim() : '';
       if (!transcript || transcript.length > 240000) fail(400, '24만 자 이내의 전사문이 필요합니다.');
@@ -182,7 +188,7 @@ export default async function handler(req, res) {
       const expires_at = Date.now() + 60 * 60 * 1000;
       const lesson_id = randomBytes(16).toString('hex');
       await write(code, 'request', { owner_hash: hash(owner), expires_at,
-        segments, input: { schema_version: 1, lesson_id, lesson } });
+        segments, input: { schema_version: 1, lesson_id, lesson, record_length } });
       return res.status(201).json({ code, owner, expires_at });
     }
     const record = await find(body.code);
@@ -190,7 +196,7 @@ export default async function handler(req, res) {
     if (!validToken(owner) || !equal(hash(owner), record.owner_hash)) fail(404, '수업 분석 요청을 찾을 수 없습니다.');
     if (body.action === 'confirm') {
       if (!record.draft && !await read(body.code, 'draft')) fail(409, '확정할 분석 초안이 없습니다.');
-      const analysis = cleanAnalysis(body.analysis, !!record.segments?.length);
+      const analysis = cleanAnalysis(body.analysis, !!record.segments?.length, record.input.record_length);
       const result = await writeOnce(body.code, 'confirmed', { schema_version: 1, lesson_id: record.input.lesson_id, analysis, status: 'confirmed' });
       if (JSON.stringify(analysis) !== JSON.stringify(result.analysis)) fail(409, '이미 확정한 기록입니다.');
       return res.json(result);
