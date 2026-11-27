@@ -17,7 +17,7 @@ async function send(body, owner) {
 const call = async (name, args) => (await send({ jsonrpc: '2.0', id: 1, method: 'tools/call',
   params: { name, arguments: args } })).body.result;
 const transcript = '가'.repeat(200000) + '두 번째 차례';
-const created = await send({ action: 'create', transcript,
+const created = await send({ action: 'create', workflow: 'lesson_record', transcript: { text: transcript },
   lesson: { education_type: 'university', lesson_date: '2026-11-27', course: '검증', topic: '검증' } });
 assert.equal(created.code, 201);
 const args = { request_code: created.body.code };

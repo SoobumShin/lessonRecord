@@ -170,7 +170,9 @@ export default async function handler(req, res) {
       if (process.env.LESSON_RECORD_ACCESS_KEY &&
           !equal(hash(String(body.access_key ?? '')), hash(process.env.LESSON_RECORD_ACCESS_KEY))) fail(403, '스튜디오 접근키를 확인하세요.');
       const lesson = cleanLesson(body.lesson);
-      const transcript = typeof body.transcript === 'string' ? body.transcript.trim() : '';
+      if (body.workflow !== undefined && body.workflow !== 'lesson_record') fail(400, '수업기록 요청 유형을 확인하세요.');
+      const transcriptInput = body.workflow === 'lesson_record' ? body.transcript?.text : body.transcript;
+      const transcript = typeof transcriptInput === 'string' ? transcriptInput.trim() : '';
       if (!transcript || transcript.length > 240000) fail(400, '24만 자 이내의 전사문이 필요합니다.');
       const chars = Array.from(transcript);
       const segments = [];

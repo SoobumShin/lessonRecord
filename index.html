@@ -649,7 +649,11 @@ async function startAnalysis(event) {
     if (!transcript) throw Error('녹음을 Whisper로 전사하거나 전사문을 붙여넣으세요.');
     const lesson = transcriptLesson || lessonInfo();
     const { lesson_date, ...details } = lesson;
-    const data = await analysisCall('create', null, { lesson: details, transcript });
+    const data = await analysisCall('create', null, {
+      workflow: 'lesson_record',
+      lesson: details,
+      transcript: { text: transcript }
+    });
     analysisRequests.unshift({ code: data.code, owner: data.owner, title: lesson.topic });
     refresh = showAnalysisRequest();
     try { localStorage.setItem(analysisKeep, JSON.stringify(analysisRequests)); }
